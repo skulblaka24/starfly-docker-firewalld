@@ -1,0 +1,50 @@
+---
+# tasks file for docker-with-firewalld
+
+- name: Vérification de la présence de containers
+  shell: docker ps -a | wc -l | awk '{ print $1 }'
+  changed_when: false
+  register: docker_result_container
+
+- name: Stop des containers
+  shell: docker stop $(docker ps -a -q)
+  when: 
+    - docker_result_container.stdout != "1"
+    - docker_result_container.stdout != "0"
+
+- name: Destruction des containers
+  shell: docker rm $(docker ps -a -q)
+  when: 
+    - docker_result_container.stdout != "1"
+    - docker_result_container.stdout != "0"
+
+- name: Retrait de docker et dépendances
+  apt:
+    name: "{{ item }}"
+    state: absent
+  with_items:
+      - docker
+      - docker-engine
+      - docker-compose
+      - docker-machine
+      - docker.io
+
+- name: Installation de firewalld
+  apt:
+    name: firewalld
+    update_cache: yes
+  environment:
+    # do not start at the end of install
+    RUNLEVEL: 1
+  when: ansible_distribution == 'Debian'
+
+- name: Installation de Docker
+  shell: curl -sSL https://get.docker.com | sh
+
+- name: Installation de docker-compose
+  apt:
+    name: docker-compose
+    update_cache: no
+  when: ansible_distribution == 'Debian'
+
+...
